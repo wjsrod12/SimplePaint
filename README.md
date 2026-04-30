@@ -1,4 +1,4 @@
-# (C# 코딩) SimplePaint
+# (C# 코딩) Simple Paint
 
 ## 개요
 - C# 프로그래밍 학습
@@ -6,7 +6,12 @@
 - 사용한 플랫폼 :
 	- Label, Button, PictureBox, ComboBox, TrackBar
 - 사용한 기술과 구현한 기능:
-	
+	- trackBar로 선 굵기 조절, comboBox로 색 선택, button으로 도형 선택, pictureBox로 그림 그리기
+	- FileDialog로 파일 열기/저장
+	- 마우스 드래그로 도형 그리기
+	- Ctrl + 마우스 휠로 확대/축소 기능
+	- 스크롤바로 그림 이동 기능
+	- x축과 y축의 좌표 계산하여 도형 그리기 기능
 
 
 ## 실행 화면 (과제1)
