@@ -41,11 +41,13 @@
             btnOpenFile = new Button();
             btnSaveFile = new Button();
             picCanvas = new PictureBox();
+            panel1 = new Panel();
             groupBox1.SuspendLayout();
             groupBox2.SuspendLayout();
             groupBox3.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)trbLineWidth).BeginInit();
             ((System.ComponentModel.ISupportInitialize)picCanvas).BeginInit();
+            panel1.SuspendLayout();
             SuspendLayout();
             // 
             // lblAppName
@@ -170,21 +172,29 @@
             // 
             picCanvas.BackColor = Color.White;
             picCanvas.BorderStyle = BorderStyle.FixedSingle;
-            picCanvas.Location = new Point(22, 196);
+            picCanvas.Location = new Point(3, 3);
             picCanvas.Name = "picCanvas";
-            picCanvas.Size = new Size(753, 331);
+            picCanvas.Size = new Size(758, 350);
             picCanvas.TabIndex = 6;
             picCanvas.TabStop = false;
             picCanvas.MouseDown += picCanvas_MouseDown;
             picCanvas.MouseMove += picCanvas_MouseMove;
             picCanvas.MouseUp += picCanvas_MouseUp;
             // 
+            // panel1
+            // 
+            panel1.Controls.Add(picCanvas);
+            panel1.Location = new Point(12, 184);
+            panel1.Name = "panel1";
+            panel1.Size = new Size(764, 356);
+            panel1.TabIndex = 7;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 552);
-            Controls.Add(picCanvas);
+            Controls.Add(panel1);
             Controls.Add(btnSaveFile);
             Controls.Add(btnOpenFile);
             Controls.Add(groupBox3);
@@ -199,6 +209,7 @@
             groupBox3.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)trbLineWidth).EndInit();
             ((System.ComponentModel.ISupportInitialize)picCanvas).EndInit();
+            panel1.ResumeLayout(false);
             ResumeLayout(false);
             PerformLayout();
         }
@@ -217,5 +228,6 @@
         private Button btnCircle;
         private Button btnLine;
         private PictureBox picCanvas;
+        private Panel panel1;
     }
 }

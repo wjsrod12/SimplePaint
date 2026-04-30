@@ -6,6 +6,7 @@ namespace SimplePaint
     using System.Drawing.Drawing2D;
     using System.Drawing.Imaging;
     using System.Drawing.Printing;
+    using System.Drawing.Text;
     using System.Windows.Forms;
 
 
@@ -33,7 +34,8 @@ namespace SimplePaint
             canvasBitmap = new Bitmap(picCanvas.Width, picCanvas.Height);
             canvasGraphics = Graphics.FromImage(canvasBitmap);
             canvasGraphics.Clear(Color.White);   // 캔버스를흰색으로초기화
-            picCanvas.Image = canvasBitmap;   // 그린그림을화면(PictureBox)에표시
+            // 그림은 PictureBox의 Image로 직접 표시하지 않고 Paint에서 확대/축소하여 그립니다
+            picCanvas.Image = null;
 
             // 마우스이벤트연결
             picCanvas.MouseDown += picCanvas_MouseDown;
@@ -59,28 +61,48 @@ namespace SimplePaint
             trbLineWidth.ValueChanged += trbLineWidth_ValueChanged;
 
             btnSaveFile.Click += btnSaveFile_Click;
+            btnOpenFile.Click += btnOpenFile_Click;
+
+            picCanvas.MouseWheel += picCanvas_MouseWheel;
+            picCanvas.MouseEnter += (s, e) => picCanvas.Focus(); // 휠 이벤트 받으려면 포커스 필요
+
+            panel1.AutoScroll = true;
+        } // Closing brace for the constructor
 
 
+
+
+
+
+        private PointF ScreenToImageF(PointF p)
+        {
+            return new PointF((p.X - viewOffset.X) / zoom, (p.Y - viewOffset.Y) / zoom);
+        }
+
+        private Point ScreenToImage(Point p)
+        {
+            PointF pf = ScreenToImageF(p);
+            return Point.Round(pf);
         }
 
         private void picCanvas_MouseDown(object sender, MouseEventArgs e)
         {
-            isDrawing = true;          // 드래그시작
-            startPoint = e.Location;  // 시작점저장
+            isDrawing = true; // 드래그시작
+            startPoint = ScreenToImage(e.Location); // 시작점 저장 (이미지 좌표)
         }
 
         private void picCanvas_MouseMove(object sender, MouseEventArgs e)
         {
             if (!isDrawing) return;  // 그림 그리기와 상관 없는 마우스 움직임은 무시
-            endPoint = e.Location;    // 현재 위치 갱신
+            endPoint = ScreenToImage(e.Location); // 현재 위치 갱신 (이미지 좌표)
             picCanvas.Invalidate();   // 화면 다시 그리기 (미리보기)
         }
 
         private void picCanvas_MouseUp(object sender, MouseEventArgs e)
         {
             if (!isDrawing) return;
-            isDrawing = false;         // 드래그종료
-            endPoint = e.Location;   
+            isDrawing = false; // 드래그종료
+            endPoint = ScreenToImage(e.Location);
 
             using (Pen pen = new Pen(currentColor, currentLineWidth))
             {
@@ -91,13 +113,33 @@ namespace SimplePaint
 
         private void picCanvas_Paint(object sender, PaintEventArgs e)
         {
-            if (!isDrawing) return;
-            // 점선펜(미리보기용)
-            using (Pen previewPen = new Pen(currentColor, currentLineWidth))
+            Graphics g = e.Graphics;
+
+            // 배경을 PictureBox 기본으로 두고, 이미지에 대해 변환 적용
+            // 변환: 먼저 뷰 오프셋을 적용하고, 그 다음 확대(스케일)을 적용합니다.
+            var oldTransform = g.Transform;
+            g.TranslateTransform(viewOffset.X, viewOffset.Y);
+            g.ScaleTransform(zoom, zoom);
+
+            // 품질 설정
+            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+
+            // 원래 비트맵을 (0,0)에 그림 (이미지 좌표계)
+            if (canvasBitmap != null)
+                g.DrawImageUnscaled(canvasBitmap, 0, 0);
+
+            // 미리보기(드래그 중일 때 점선)
+            if (isDrawing)
             {
-                previewPen.DashStyle = DashStyle.Dash;
-                DrawShape(e.Graphics, previewPen, startPoint, endPoint);
+                using (Pen previewPen = new Pen(currentColor, currentLineWidth))
+                {
+                    previewPen.DashStyle = DashStyle.Dash;
+                    DrawShape(g, previewPen, startPoint, endPoint);
+                }
             }
+
+            g.Transform = oldTransform;
         }
 
         private void DrawShape(Graphics g, Pen pen, Point p1, Point p2)
@@ -189,6 +231,63 @@ namespace SimplePaint
                 }
             }
         }
+
+        private void btnOpenFile_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog ofd = new OpenFileDialog())
+            {
+                ofd.Filter = "Image Files|*.png;*.jpg;*.bmp";
+
+                if (ofd.ShowDialog() == DialogResult.OK)
+                {
+                    Image img = Image.FromFile(ofd.FileName);
+
+                    canvasBitmap = new Bitmap(img);
+                    canvasGraphics = Graphics.FromImage(canvasBitmap);
+
+                    // 2번: 크기 맞추기
+                    picCanvas.Width = canvasBitmap.Width;
+                    picCanvas.Height = canvasBitmap.Height;
+                    picCanvas.Location = new Point(0, 0);
+
+                    // 초기 줌과 오프셋 리셋
+                    zoom = 1.0f;
+                    viewOffset = new PointF(0, 0);
+                    picCanvas.Invalidate();
+                    
+                }
+            }
+        }
+
+        private float zoom = 1.0f; // 확대/축소 비율
+        private PointF viewOffset = new PointF(0, 0); // 이미지의 뷰 오프셋
+        private void picCanvas_MouseWheel(object sender, MouseEventArgs e)
+        {
+            if (ModifierKeys != Keys.Control) return;
+
+            // 이미지 좌표계에서 마우스가 가리키는 점을 고정시키며 확대/축소
+            float oldZoom = zoom;
+            float newZoom = zoom + (e.Delta > 0 ? 0.1f : -0.1f);
+            if (newZoom < 0.1f) newZoom = 0.1f;
+            if (newZoom > 5.0f) newZoom = 5.0f;
+            if (Math.Abs(newZoom - oldZoom) < 1e-6f) return;
+
+            // 스크린 좌표에서 마우스 위치
+            PointF mouseScreen = e.Location;
+            // 해당 스크린 위치가 가리키는 이미지 좌표
+            PointF imgBefore = ScreenToImageF(mouseScreen);
+
+            zoom = newZoom;
+
+            // viewOffset 계산: mouseScreen = viewOffset + imgBefore * zoom => viewOffset = mouseScreen - imgBefore * zoom
+            viewOffset = new PointF(mouseScreen.X - imgBefore.X * zoom, mouseScreen.Y - imgBefore.Y * zoom);
+
+            picCanvas.Invalidate();
+        }
+
+
+
+
 
     }
 }
